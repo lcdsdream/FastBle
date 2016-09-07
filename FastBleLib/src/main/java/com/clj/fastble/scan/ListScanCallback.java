@@ -37,6 +37,7 @@ public abstract class ListScanCallback extends PeriodScanCallback {
         for (int i = 0; i < devices.length; i++) {
             devices[i] = deviceList.get(i);
         }
+        deviceList.clear();
         onDeviceFound(devices);
     }
 

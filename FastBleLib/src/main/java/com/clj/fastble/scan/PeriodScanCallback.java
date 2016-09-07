@@ -3,7 +3,6 @@ package com.clj.fastble.scan;
 import android.bluetooth.BluetoothAdapter;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
 
 import com.clj.fastble.bluetooth.BleBluetooth;
 
@@ -12,6 +11,11 @@ public abstract class PeriodScanCallback implements BluetoothAdapter.LeScanCallb
     protected Handler handler = new Handler(Looper.getMainLooper());
     protected long timeoutMillis = 10000;
     protected BleBluetooth bleBluetooth;
+
+    //default timeout 10 second
+    public PeriodScanCallback() {
+        this.timeoutMillis = 10 * 1000;
+    }
 
     public PeriodScanCallback(long timeoutMillis) {
         this.timeoutMillis = timeoutMillis;

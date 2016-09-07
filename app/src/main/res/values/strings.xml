@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">BleSample</string>
+    <string name="def_mac">22:02:04:04:01:03</string>
 </resources>

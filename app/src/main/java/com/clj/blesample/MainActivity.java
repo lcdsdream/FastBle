@@ -3,10 +3,18 @@ package com.clj.blesample;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.content.Context;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.EditText;
+import android.widget.ListView;
+import android.widget.SimpleAdapter;
+import android.widget.Toast;
 
 import com.clj.fastble.BleManager;
 import com.clj.fastble.bluetooth.BleGattCallback;
@@ -16,31 +24,38 @@ import com.clj.fastble.scan.ListScanCallback;
 import com.clj.fastble.utils.BluetoothUtil;
 import com.clj.fastble.utils.HexUtil;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String UUID_CLIENT_CHARACTERISTIC_CONFIG_DESCRIPTOR = "00002902-0000-1000-8000-00805f9b34fb";
-
-    // 下面的所有UUID及指令请根据实际设备替换
-    private static final String UUID_SERVICE_LISTEN = "00001810-0000-1000-8000-00805f9b34fb";       // 下面两个特征值所对应的service的UUID
-    private static final String UUID_LISTEN_INDICATE = "00002A35-0000-1000-8000-00805f9b34fb";      // indicate特征值的UUID
-    private static final String UUID_LISTEN_NOTIFY = "00002A36-0000-1000-8000-00805f9b34fb";        // notify特征值的UUID
-
-    private static final String UUID_SERVICE_OPERATE = "0000fff0-0000-1000-8000-00805f9b34fb";      // 下面两个特征值所对应的service的UUID
-    private static final String UUID_OPERATE_WRITE = "0000fff1-0000-1000-8000-00805f9b34fb";        // 设备写特征值的UUID
-    private static final String UUID_OPERATE_NOTIFY = "0000fff2-0000-1000-8000-00805f9b34fb";       // 设备监听写完之后特征值数据改变的UUID
-
-    private static final String SAMPLE_WRITE_DATA = "55aa0bb2100705100600ee";     // 要写入设备某一个特征值的指令
-
-    private static final long TIME_OUT = 10000;                                   // 扫描超时时间
-    private static final String DEVICE_NAME = "这里写你的设备名";                   // 符合连接规则的蓝牙设备名，即：device.getName
     private static final String TAG = "ble_sample";
 
+    private static final String UUID_CLIENT_CHARACTERISTIC_CONFIG_DESCRIPTOR = "00002902-0000-1000-8000-00805f9b34fb";
+
+    private static final String UUID_SERVICE_OPERATE = "0000fff0-0000-1000-8000-00805f9b34fb";
+    private static final String UUID_OPERATE_WRITE = "0000fff1-0000-1000-8000-00805f9b34fb";
+
+    private static final String SAMPLE_WRITE_DATA = "2204020b010300";
+
+    private static final long TIME_OUT = 5000;                                   // 扫描超时时间
+    private static final String DEVICE_MAC_SAMPLE = "11:22:33:44:55:66";
+
     private BleManager bleManager;                                                // Ble核心管理类
+    private Handler handler = new Handler(Looper.getMainLooper());
 
-    private BluetoothDevice[] bluetoothDevices;
 
+    // scan
+    private List<Map<String, Object>> scanListItem = new ArrayList<Map<String, Object>>();
+    private List<BluetoothDevice> deviceList = new ArrayList<>(); // scan device list
+    private List<String> deviceListData = new ArrayList<>(); // with device's adv data
+
+    private String deviceMac;
+    private MyListScanCallback myListScanCallback = new MyListScanCallback(TIME_OUT);
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -53,36 +68,127 @@ public class MainActivity extends AppCompatActivity {
         bleManager.init(this);
     }
 
+
     private void initView() {
 
-        /*******************************关键操作示例**********************************/
-
-
-        /**扫描出周围所有设备*/
-        findViewById(R.id.btn_0).setOnClickListener(new View.OnClickListener() {
+        //scan adv
+        findViewById(R.id.btn_scan).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
 
-                bleManager.scanDevice(new ListScanCallback(TIME_OUT) {
-                    @Override
-                    public void onDeviceFound(BluetoothDevice[] devices) {
-                        Log.i(TAG, "共发现" + devices.length + "台设备");
-                        for (int i = 0; i < devices.length; i++) {
-                            Log.i(TAG, "name:" + devices[i].getName() + "------mac:" + devices[i].getAddress());
-                        }
-                        bluetoothDevices = devices;
-                    }
+                if (bleManager.isInScanning()) {
+                    return;
+                }
 
+                scanListItem.clear();
+                deviceList.clear();
+                deviceListData.clear();
+
+                InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+
+                // get mac
+                EditText etMac = (EditText) findViewById(R.id.et_mac);
+                if (etMac.getText().length() == DEVICE_MAC_SAMPLE.length()) {
+                    deviceMac = etMac.getText().toString();
+                } else {
+                    deviceMac = "";
+                }
+                showToast("Start scan...");
+                bleManager.scanDevice(myListScanCallback);
+            }
+        });
+    }
+
+    private static boolean isMainThread() {
+        return Looper.myLooper() == Looper.getMainLooper();
+    }
+
+    private void runOnMainThread(Runnable runnable) {
+        if (isMainThread()) {
+            runnable.run();
+        } else {
+            handler.post(runnable);
+        }
+    }
+
+    private void showToast(final CharSequence msg) {
+        runOnMainThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+
+    class MyListScanCallback extends ListScanCallback {
+
+        public MyListScanCallback(long timeoutMillis) {
+            super(timeoutMillis);
+        }
+
+        @Override
+        public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
+            // repeat
+            if (deviceList.contains(device)) {
+                return;
+            }
+
+            if (deviceMac.equals("") || deviceMac.equals(device.getAddress())) {
+
+                deviceList.add(device);
+                deviceListData.add(HexUtil.encodeHexStr(scanRecord));
+
+                super.onLeScan(device, rssi, scanRecord);
+
+                Map<String, Object> showItem = new HashMap<String, Object>();
+                showItem.put("name", device.getName());
+                showItem.put("mac", device.getAddress());
+                showItem.put("rssi", rssi);
+                scanListItem.add(showItem);
+
+                // show listView
+                final List<Map<String, Object>> listItem = scanListItem;
+                runOnMainThread(new Runnable() {
                     @Override
-                    public void onScanTimeout() {
-                        super.onScanTimeout();
-                        Log.i(TAG, "搜索时间结束");
+                    public void run() {
+                        SimpleAdapter myAdapter = new SimpleAdapter(getApplicationContext(), listItem, R.layout.list_item,
+                                new String[]{"name", "mac", "rssi"}, new int[]{R.id.name, R.id.mac, R.id.rssi});
+                        ListView listView = (ListView) findViewById(R.id.lv_mac);
+                        listView.setAdapter(myAdapter);
                     }
                 });
             }
-        });
+        }
 
-        /**当搜索到周围有设备之后，可以选择直接连某一个设备*/
+        @Override
+        public void onDeviceFound(final BluetoothDevice[] devices) {
+            Log.i(TAG, "共发现" + devices.length + "台设备");
+            for (int i = 0; i < devices.length; i++) {
+                Log.i(TAG, "name:" + devices[i].getName() + "------mac:" + devices[i].getAddress());
+                Log.i(TAG, "adv : " + deviceListData.get(i));
+            }
+            showToast("共发现" + devices.length + "台设备");
+        }
+
+        @Override
+        public void onScanTimeout() {
+            super.onScanTimeout();
+            Log.i(TAG, "搜索时间结束");
+        }
+    }
+
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        bleManager.closeBluetoothGatt();
+        bleManager.disableBluetooth();
+    }
+}
+
+/*
         findViewById(R.id.btn_01).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -115,7 +221,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        /**扫描出周围指定名称设备、并连接*/
         findViewById(R.id.btn_1).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -146,7 +251,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        /**notify*/
         findViewById(R.id.btn_2).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -172,7 +276,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        /**indicate*/
         findViewById(R.id.btn_3).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -198,7 +301,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        /**write*/
         findViewById(R.id.btn_4).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -226,7 +328,6 @@ public class MainActivity extends AppCompatActivity {
         });
 
 
-        /**刷新缓存操作*/
         findViewById(R.id.btn_6).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -235,7 +336,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        /**关闭操作*/
         findViewById(R.id.btn_7).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -245,12 +345,6 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-
-    /*******************************移除某一个回调示例**********************************/
-
-    /**
-     * 将回调实例化，而不是以匿名对象的形式
-     */
     BleCharacterCallback bleCharacterCallback = new BleCharacterCallback() {
         @Override
         public void onSuccess(BluetoothGattCharacteristic characteristic) {
@@ -268,23 +362,13 @@ public class MainActivity extends AppCompatActivity {
 
     private void addAndRemove() {
 
-        /**需要使用的时候，作为参数传入*/
         bleManager.notifyDevice(
                 UUID_SERVICE_OPERATE,
                 UUID_OPERATE_NOTIFY,
                 UUID_CLIENT_CHARACTERISTIC_CONFIG_DESCRIPTOR,
                 bleCharacterCallback);
 
-        /**不需要再监听特征值变化的时候，将该回调接口对象移除*/
         bleManager.removeBleCharacterCallback(bleCharacterCallback);
     }
+*/
 
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        bleManager.closeBluetoothGatt();
-        bleManager.disableBluetooth();
-    }
-
-}
