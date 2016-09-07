@@ -11,6 +11,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.SimpleAdapter;
@@ -24,12 +25,14 @@ import com.clj.fastble.scan.ListScanCallback;
 import com.clj.fastble.utils.BluetoothUtil;
 import com.clj.fastble.utils.HexUtil;
 
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -89,13 +92,21 @@ public class MainActivity extends AppCompatActivity {
 
                 // get mac
                 EditText etMac = (EditText) findViewById(R.id.et_mac);
-                if (etMac.getText().length() == DEVICE_MAC_SAMPLE.length()) {
-                    deviceMac = etMac.getText().toString();
-                } else {
-                    deviceMac = "";
-                }
+                deviceMac = etMac.getText().toString();
                 showToast("Start scan...");
                 bleManager.scanDevice(myListScanCallback);
+            }
+        });
+
+        ListView listView= (ListView) this.findViewById(R.id.lv_mac);
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                ListView listView = (ListView)parent;
+                HashMap<String, Object> map = (HashMap<String, Object>) listView.getItemAtPosition(position);
+                String name = (String) map.get("name");
+                String mac = (String) map.get("mac");
+                showToast("Click : " + name + " " + mac);
             }
         });
     }
@@ -135,8 +146,7 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            if (deviceMac.equals("") || deviceMac.equals(device.getAddress())) {
-
+            if ( device.getAddress().toLowerCase().matches("^" + deviceMac.toLowerCase() + "(.*)") ) {
                 deviceList.add(device);
                 deviceListData.add(HexUtil.encodeHexStr(scanRecord));
 
