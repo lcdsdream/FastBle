@@ -4,16 +4,20 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.SimpleAdapter;
 import android.widget.Toast;
 
@@ -25,6 +29,7 @@ import com.clj.fastble.scan.ListScanCallback;
 import com.clj.fastble.utils.BluetoothUtil;
 import com.clj.fastble.utils.HexUtil;
 
+import java.sql.Time;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -58,7 +63,6 @@ public class MainActivity extends AppCompatActivity {
     private BleConnGattCallback myConnGattCallback = new BleConnGattCallback();
     private BleWriteCharacterCallback myWriteGattback = new BleWriteCharacterCallback();
     private BleNtyCharacterCallback myNtyGattback = new BleNtyCharacterCallback();
-
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -76,20 +80,29 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_scan).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-
                 bleManager.enableBluetooth();
-
                 if (bleManager.isInScanning()) {
                     return;
                 }
-
                 if (bleManager.isConnectingOrConnected()) {
                     bleManager.closeBluetoothGatt();
                 }
 
+                ProgressBar pgbar = (ProgressBar)findViewById(R.id.pgbar);
+                pgbar.setProgress(0);
+                int runTime = (int) TIME_OUT;
+                ScanProgressBar myTask = new ScanProgressBar(pgbar);
+                myTask.execute(runTime);
+
+                // clear
                 scanListItem.clear();
                 deviceList.clear();
                 deviceListData.clear();
+                final List<Map<String, Object>> listItem = scanListItem;
+                SimpleAdapter myAdapter = new SimpleAdapter(getApplicationContext(), listItem, R.layout.list_item,
+                        new String[]{"name", "mac", "rssi"}, new int[]{R.id.name, R.id.mac, R.id.rssi});
+                ListView listView = (ListView) findViewById(R.id.lv_mac);
+                listView.setAdapter(myAdapter);
 
                 InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
                 imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
@@ -111,7 +124,6 @@ public class MainActivity extends AppCompatActivity {
                     showToast("Scanning!!");
                     return;
                 }
-
                 if (bleManager.isConnectingOrConnected()) {
                     if (bleManager.isConnected()) {
                         showToast("isConnected");
@@ -138,6 +150,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
 /***********************************************************************************************************************/
+   
     private static boolean isMainThread() {
         return Looper.myLooper() == Looper.getMainLooper();
     }
@@ -259,6 +272,7 @@ public class MainActivity extends AppCompatActivity {
             Log.i(TAG, "服务被发现！");
             BluetoothUtil.printServices(gatt);            // 打印该设备所有服务、特征值
             bleManager.getBluetoothState();               // 打印与该设备的当前状态
+
             runOnMainThread(new Runnable() {
                 @Override
                 public void run() {
@@ -267,6 +281,8 @@ public class MainActivity extends AppCompatActivity {
 
                 }
             });
+
+            // delay write characteristic sample
             handler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
@@ -275,6 +291,7 @@ public class MainActivity extends AppCompatActivity {
                             myWriteGattback);
                 }
             }, 500);
+
         }
         @Override
         public void onConnectFailure(BleException exception) {
