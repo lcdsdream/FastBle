@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <TextView
+        android:id="@+id/txt_lable"
+        android:layout_width="match_parent"
+        android:layout_height="45dp"
+        android:text="Connected : 22:00:00:00:00:00"
+        android:gravity="center"
+        android:textSize="18sp" />
+
+    <EditText
+        android:id="@+id/edit_write"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Send : "
+        android:text="2204020b010400"
+        android:singleLine="true"
+        android:selectAllOnFocus="true"
+        android:textColor="#95A1AA"
+        android:layout_marginTop="30dp" />
+    <Button
+        android:id="@+id/btn_write"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="write" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/white"
+        android:orientation="horizontal"
+        android:paddingBottom="@dimen/activity_vertical_margin"
+        android:paddingLeft="@dimen/activity_horizontal_margin"
+        android:paddingRight="@dimen/activity_horizontal_margin"
+        android:layout_marginTop="30dp"
+        android:paddingTop="@dimen/activity_vertical_margin">
+
+        <Button
+            android:id="@+id/btn_dis"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="disconnect" />
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/txt_log_head"
+        android:layout_width="match_parent"
+        android:layout_height="45dp"
+        android:text="Log :"
+        android:gravity="center"
+        android:textSize="18sp" />
+
+    <ListView
+        android:id="@+id/lv_log"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent">
+    </ListView>
+
+</LinearLayout>

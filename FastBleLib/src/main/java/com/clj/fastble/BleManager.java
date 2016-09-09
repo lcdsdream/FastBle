@@ -53,7 +53,8 @@ public class BleManager {
             bleBluetooth = new BleBluetooth(context);
         }
         bleBluetooth.enableBluetoothIfDisabled((Activity) context, 1);
-        bleExceptionHandler = new DefaultBleExceptionHandler(context);
+        if (bleExceptionHandler == null)
+            bleExceptionHandler = new DefaultBleExceptionHandler(context);
     }
 
     /**
@@ -74,9 +75,9 @@ public class BleManager {
     /**
      * 直接连接某一设备
      */
-    public void connectDevice(BluetoothDevice device,
+    public void connectDevice(BluetoothDevice device, boolean autoConn,
                                  BleGattCallback callback) {
-        connect(device, callback);
+        connect(device, autoConn, callback);
     }
 
     /**
@@ -217,6 +218,9 @@ public class BleManager {
     }
 
 
+    public void addGattCallback(BleGattCallback callback) {
+        bleBluetooth.addGattCallback(callback);
+    }
     /*************************************inner method****************************************************/
 
     /**
@@ -232,9 +236,10 @@ public class BleManager {
      * 与某一指定的设备连接
      * (与 scanSpecifiedDevicePeriod方法 配合使用)
      */
-    private void connect(BluetoothDevice device, BleGattCallback callback) {
-        bleBluetooth.connect(device, true, callback);
+    private void connect(BluetoothDevice device, boolean autoConn, BleGattCallback callback) {
+        bleBluetooth.connect(device, autoConn, callback);
     }
+
 
     /**
      * 扫描到周围第一个符合名称的设备即连接，并持续监听与这个设备的连接状态

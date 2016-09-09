@@ -31,7 +31,7 @@ public class ScanProgressBar extends AsyncTask<Integer,Integer,String>
         protected String doInBackground(Integer... params) {
             DelayOperator dop = new DelayOperator();
             int i;
-            for (i = 0;i < 100; i += (100*100)/params[0].intValue()) {
+            for (i = 0; i < 100; i += (100*100)/params[0].intValue()) {
                 dop.delay();
                 publishProgress(i);
             }
