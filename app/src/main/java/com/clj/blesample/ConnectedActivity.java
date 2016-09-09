@@ -195,5 +195,11 @@ public class ConnectedActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        bleManager.closeBluetoothGatt();
+    }
+
 }
 
